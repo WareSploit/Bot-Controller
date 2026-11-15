@@ -2,13 +2,12 @@ local HttpService = game:GetService("HttpService")
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
 
--- СПИСОК БОТОВ (можно добавить W2nd_Bot и т.д.)
 local ALLOWED_BOTS = {
     ["W1nd_Bot"] = true,
 }
 local OWNER = "WareSploit"
 local REPO = "Bot-Controller"
-local TOKEN = "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"
+local TOKEN = "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"
 local FILE_PATH = "command.json"
 local BASE_URL = "https://api.github.com/repos/" .. OWNER .. "/" .. REPO .. "/contents/" .. FILE_PATH
 local POLL_INTERVAL = 2
@@ -17,7 +16,7 @@ if not ALLOWED_BOTS[LocalPlayer.Name] then
     warn("[BOT] Этот скрипт только для ботов! Твой ник: " .. LocalPlayer.Name)
     return
 end
-print("[BOT] Привет, " .. LocalPlayer.Name .. "! Бот запущен и слушает команды.")
+print("[BOT] Привет, " .. LocalPlayer.Name .. "! Бот запущен.")
 
 local function makeRequest(url, method, headers)
     local reqFunc = syn and syn.request or http and http.request or http_request or request
@@ -80,6 +79,8 @@ task.spawn(function()
                 print("[BOT] Новая команда: " .. tostring(cmdData.action))
                 executeCommand(cmdData.action)
             end
+        elseif status == 401 then
+            warn("[BOT] Токен не работает (401)!")
         end
         task.wait(POLL_INTERVAL)
     end
