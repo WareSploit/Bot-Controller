@@ -1,20 +1,17 @@
 local HttpService = game:GetService("HttpService")
 local Players = game:GetService("Players")
-local UserInputService = game:GetService("UserInputService")
 local LocalPlayer = Players.LocalPlayer
 
--- ПРОВЕРКА НИКА
 local MASTER_NAME = "TORGINFEDBRATZE"
 if LocalPlayer.Name ~= MASTER_NAME then
-    warn("[MASTER] Ошибка: Этот скрипт только для " .. MASTER_NAME .. ". Твой ник: " .. LocalPlayer.Name)
+    warn("[MASTER] Ошибка: Этот скрипт только для " .. MASTER_NAME)
     return
 end
 print("[MASTER] Привет, " .. MASTER_NAME .. "! Пульт управления запущен.")
 
--- НАСТРОЙКИ GITHUB
 local OWNER = "WareSploit"
 local REPO = "Bot-Controller"
-local TOKEN = "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"
+local TOKEN = "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"
 local FILE_PATH = "command.json"
 local BASE_URL = "https://api.github.com/repos/" .. OWNER .. "/" .. REPO .. "/contents/" .. FILE_PATH
 
@@ -44,7 +41,6 @@ local function sendCommand(action)
     local id = tostring(tick())
     local payload = {action = action, id = id}
     
-    -- Получаем SHA файла (обязательно для обновления)
     local successGet, statusGet, bodyGet = makeRequest(BASE_URL, "GET", getHeaders(), nil)
     local currentSha = nil
     if statusGet == 200 then
@@ -62,13 +58,13 @@ local function sendCommand(action)
 
     local successPut, statusPut = makeRequest(BASE_URL, "PUT", getHeaders(), HttpService:JSONEncode(bodyData))
     if successPut then
-        print("[MASTER] ✅ Команда '" .. action .. "' отправлена боту!")
+        print("[MASTER] ✅ Команда '" .. action .. "' отправлена!")
     else
         warn("[MASTER] ❌ Ошибка отправки: " .. tostring(statusPut))
     end
 end
 
--- ===== GUI =====
+-- GUI
 local playerGui = LocalPlayer:WaitForChild("PlayerGui")
 local screenGui = Instance.new("ScreenGui")
 screenGui.Name = "MasterMenu"
@@ -117,17 +113,8 @@ local function makeButton(text, y, color)
     return btn
 end
 
-local jumpBtn = makeButton("JUMP", 40, Color3.fromRGB(40, 180, 80))
-jumpBtn.MouseButton1Click:Connect(function() sendCommand("jump") end)
-
-local fwdBtn = makeButton("MOVE FORWARD", 85, Color3.fromRGB(60, 120, 200))
-fwdBtn.MouseButton1Click:Connect(function() sendCommand("move_forward") end)
-
-local backBtn = makeButton("MOVE BACK", 130, Color3.fromRGB(60, 120, 200))
-backBtn.MouseButton1Click:Connect(function() sendCommand("move_back") end)
-
-local stopBtn = makeButton("STOP", 175, Color3.fromRGB(200, 150, 40))
-stopBtn.MouseButton1Click:Connect(function() sendCommand("stop") end)
-
-local resetBtn = makeButton("RESET", 220, Color3.fromRGB(200, 60, 60))
-resetBtn.MouseButton1Click:Connect(function() sendCommand("reset") end)
+makeButton("JUMP", 40, Color3.fromRGB(40, 180, 80)).MouseButton1Click:Connect(function() sendCommand("jump") end)
+makeButton("MOVE FORWARD", 85, Color3.fromRGB(60, 120, 200)).MouseButton1Click:Connect(function() sendCommand("move_forward") end)
+makeButton("MOVE BACK", 130, Color3.fromRGB(60, 120, 200)).MouseButton1Click:Connect(function() sendCommand("move_back") end)
+makeButton("STOP", 175, Color3.fromRGB(200, 150, 40)).MouseButton1Click:Connect(function() sendCommand("stop") end)
+makeButton("RESET", 220, Color3.fromRGB(200, 60, 60)).MouseButton1Click:Connect(function() sendCommand("reset") end)
