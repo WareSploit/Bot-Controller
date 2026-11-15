@@ -3,12 +3,51 @@ print("[MASTER] Script loaded.")
 local HttpService = game:GetService("HttpService")
 local CoreGui = game:GetService("CoreGui")
 local UserInputService = game:GetService("UserInputService")
+local Players = game:GetService("Players")
+
+local LocalPlayer = Players.LocalPlayer
+local MASTER_NAME = "TORGINFEDBRATZE"
+
+if LocalPlayer.Name ~= MASTER_NAME then
+    warn("[MASTER] Error: This script is for " .. MASTER_NAME .. " only. Your name: " .. LocalPlayer.Name)
+    return
+end
+
+print("[MASTER] User verified: " .. MASTER_NAME)
 
 local OWNER = "WareSploit"
 local REPO = "Bot-Controller"
-local TOKEN = "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"
+local TOKEN = "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"
 local FILE_PATH = "command.json"
 local BASE_URL = "https://api.github.com/repos/" .. OWNER .. "/" .. REPO .. "/contents/" .. FILE_PATH
+
+local function makeRequest(url, method, headers, body)
+    local reqFunc = syn and syn.request or http and http.request or http_request or fluxus and fluxus.request or request
+    if reqFunc then
+        local res = reqFunc({
+            Url = url,
+            Method = method,
+            Headers = headers,
+            Body = body
+        })
+        return res.Success, res.StatusCode, res.Body
+    else
+        local ok, res = pcall(function()
+            return HttpService:RequestAsync({
+                Url = url,
+                Method = method,
+                Headers = headers,
+                Body = body
+            })
+        end)
+        if ok then
+            return res.Success, res.StatusCode, res.Body
+        else
+            warn("[MASTER] Error: No HTTP request method available and HttpService is blocked.")
+            return false, 0, ""
+        end
+    end
+end
 
 local function getHeaders()
     return {
@@ -21,39 +60,34 @@ end
 
 local function sendCommand(action)
     print("[MASTER] Initiating command sequence: " .. action)
-    print("[MASTER] Fetching current file SHA from GitHub...")
     
-    local getResponse = HttpService:RequestAsync({
-        Url = BASE_URL,
-        Method = "GET",
-        Headers = getHeaders()
-    })
+    local successGet, statusGet, bodyGet = makeRequest(BASE_URL, "GET", getHeaders(), nil)
+    local currentSha = nil
     
-    if not getResponse.Success then
-        warn("[MASTER] Error: Failed to fetch SHA. Status: " .. getResponse.StatusCode)
+    if statusGet == 200 then
+        local getData = HttpService:JSONDecode(bodyGet)
+        currentSha = getData.sha
+        print("[MASTER] SHA retrieved successfully.")
+    elseif statusGet == 404 then
+        print("[MASTER] File not found (404). It will be created automatically.")
+    else
+        warn("[MASTER] Error: Failed to fetch SHA. Status: " .. tostring(statusGet))
         return
     end
     
-    local getData = HttpService:JSONDecode(getResponse.Body)
-    local currentSha = getData.sha
-    print("[MASTER] SHA retrieved successfully. SHA: " .. currentSha)
-    print("[MASTER] Sending PUT request to update command.json...")
-    
     local bodyData = {
         message = "Command: " .. action,
-        content = HttpService:Base64Encode(HttpService:JSONEncode({action = action})),
-        sha = currentSha
+        content = HttpService:Base64Encode(HttpService:JSONEncode({action = action}))
     }
     
-    local putResponse = HttpService:RequestAsync({
-        Url = BASE_URL,
-        Method = "PUT",
-        Headers = getHeaders(),
-        Body = HttpService:JSONEncode(bodyData)
-    })
+    if currentSha then
+        bodyData.sha = currentSha
+    end
     
-    if not putResponse.Success then
-        warn("[MASTER] Error: Failed to send command. Status: " .. putResponse.StatusCode .. " Body: " .. putResponse.Body)
+    local successPut, statusPut, bodyPut = makeRequest(BASE_URL, "PUT", getHeaders(), HttpService:JSONEncode(bodyData))
+    
+    if not successPut then
+        warn("[MASTER] Error: Failed to send command. Status: " .. tostring(statusPut))
     else
         print("[MASTER] Success! Command '" .. action .. "' sent to GitHub.")
     end
