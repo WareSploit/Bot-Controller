@@ -1,52 +1,34 @@
-print("[MASTER] Script loaded.")
-
 local HttpService = game:GetService("HttpService")
-local CoreGui = game:GetService("CoreGui")
-local UserInputService = game:GetService("UserInputService")
 local Players = game:GetService("Players")
-
+local UserInputService = game:GetService("UserInputService")
 local LocalPlayer = Players.LocalPlayer
-local MASTER_NAME = "TORGINFEDBRATZE"
 
+-- ПРОВЕРКА НИКА
+local MASTER_NAME = "TORGINFEDBRATZE"
 if LocalPlayer.Name ~= MASTER_NAME then
-    warn("[MASTER] Error: This script is for " .. MASTER_NAME .. " only. Your name: " .. LocalPlayer.Name)
+    warn("[MASTER] Ошибка: Этот скрипт только для " .. MASTER_NAME .. ". Твой ник: " .. LocalPlayer.Name)
     return
 end
+print("[MASTER] Привет, " .. MASTER_NAME .. "! Пульт управления запущен.")
 
-print("[MASTER] User verified: " .. MASTER_NAME)
-
+-- НАСТРОЙКИ GITHUB
 local OWNER = "WareSploit"
 local REPO = "Bot-Controller"
-local TOKEN = "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"
+local TOKEN = "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"
 local FILE_PATH = "command.json"
 local BASE_URL = "https://api.github.com/repos/" .. OWNER .. "/" .. REPO .. "/contents/" .. FILE_PATH
 
 local function makeRequest(url, method, headers, body)
-    local reqFunc = syn and syn.request or http and http.request or http_request or fluxus and fluxus.request or request
+    local reqFunc = syn and syn.request or http and http.request or http_request or request
     if reqFunc then
-        local res = reqFunc({
-            Url = url,
-            Method = method,
-            Headers = headers,
-            Body = body
-        })
-        return res.Success, res.StatusCode, res.Body
-    else
-        local ok, res = pcall(function()
-            return HttpService:RequestAsync({
-                Url = url,
-                Method = method,
-                Headers = headers,
-                Body = body
-            })
-        end)
-        if ok then
-            return res.Success, res.StatusCode, res.Body
-        else
-            warn("[MASTER] Error: No HTTP request method available and HttpService is blocked.")
-            return false, 0, ""
-        end
+        local ok, res = pcall(reqFunc, {Url = url, Method = method, Headers = headers, Body = body})
+        if ok then return res.Success, res.StatusCode, res.Body end
     end
+    local ok, res = pcall(function()
+        return HttpService:RequestAsync({Url = url, Method = method, Headers = headers, Body = body})
+    end)
+    if ok then return res.Success, res.StatusCode, res.Body end
+    return false, 0, ""
 end
 
 local function getHeaders()
@@ -54,148 +36,98 @@ local function getHeaders()
         ["Authorization"] = "Bearer " .. TOKEN,
         ["Accept"] = "application/vnd.github+json",
         ["X-GitHub-Api-Version"] = "2022-11-28",
-        ["Content-Type"] = "application/json"
+        ["Content-Type"] = "application/json",
     }
 end
 
 local function sendCommand(action)
-    print("[MASTER] Initiating command sequence: " .. action)
+    local id = tostring(tick())
+    local payload = {action = action, id = id}
     
+    -- Получаем SHA файла (обязательно для обновления)
     local successGet, statusGet, bodyGet = makeRequest(BASE_URL, "GET", getHeaders(), nil)
     local currentSha = nil
-    
     if statusGet == 200 then
-        local getData = HttpService:JSONDecode(bodyGet)
-        currentSha = getData.sha
-        print("[MASTER] SHA retrieved successfully.")
-    elseif statusGet == 404 then
-        print("[MASTER] File not found (404). It will be created automatically.")
+        currentSha = HttpService:JSONDecode(bodyGet).sha
     else
-        warn("[MASTER] Error: Failed to fetch SHA. Status: " .. tostring(statusGet))
+        warn("[MASTER] Ошибка получения данных файла: " .. tostring(statusGet))
         return
     end
-    
+
     local bodyData = {
         message = "Command: " .. action,
-        content = HttpService:Base64Encode(HttpService:JSONEncode({action = action}))
+        content = HttpService:Base64Encode(HttpService:JSONEncode(payload)),
+        sha = currentSha
     }
-    
-    if currentSha then
-        bodyData.sha = currentSha
-    end
-    
-    local successPut, statusPut, bodyPut = makeRequest(BASE_URL, "PUT", getHeaders(), HttpService:JSONEncode(bodyData))
-    
-    if not successPut then
-        warn("[MASTER] Error: Failed to send command. Status: " .. tostring(statusPut))
+
+    local successPut, statusPut = makeRequest(BASE_URL, "PUT", getHeaders(), HttpService:JSONEncode(bodyData))
+    if successPut then
+        print("[MASTER] ✅ Команда '" .. action .. "' отправлена боту!")
     else
-        print("[MASTER] Success! Command '" .. action .. "' sent to GitHub.")
+        warn("[MASTER] ❌ Ошибка отправки: " .. tostring(statusPut))
     end
 end
 
-local menuGui = Instance.new("ScreenGui")
-menuGui.Name = "MasterMenu"
-menuGui.IgnoreGuiInset = true
-menuGui.ResetOnSpawn = false
-menuGui.Parent = CoreGui
+-- ===== GUI =====
+local playerGui = LocalPlayer:WaitForChild("PlayerGui")
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "MasterMenu"
+screenGui.ResetOnSpawn = false
+screenGui.Parent = playerGui
 
 local mainFrame = Instance.new("Frame")
-mainFrame.Size = UDim2.fromOffset(200, 100)
+mainFrame.Size = UDim2.fromOffset(220, 270)
 mainFrame.Position = UDim2.fromOffset(50, 50)
-mainFrame.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+mainFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
 mainFrame.BorderSizePixel = 0
 mainFrame.Active = true
-mainFrame.Parent = menuGui
-
-local mainGradient = Instance.new("UIGradient")
-mainGradient.Color = ColorSequence.new(Color3.fromRGB(20, 20, 20), Color3.fromRGB(6, 6, 6))
-mainGradient.Rotation = 90
-mainGradient.Parent = mainFrame
-
-local mainStroke = Instance.new("UIStroke")
-mainStroke.Color = Color3.fromRGB(70, 70, 70)
-mainStroke.Thickness = 1
-mainStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
-mainStroke.Parent = mainFrame
+mainFrame.Parent = screenGui
+Instance.new("UICorner", mainFrame).CornerRadius = UDim.new(0, 10)
 
 local titleBar = Instance.new("Frame")
-titleBar.Size = UDim2.new(1, 0, 0, 26)
-titleBar.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+titleBar.Size = UDim2.new(1, 0, 0, 30)
+titleBar.BackgroundColor3 = Color3.fromRGB(15, 15, 20)
 titleBar.BorderSizePixel = 0
 titleBar.Parent = mainFrame
-
-local titleGradient = Instance.new("UIGradient")
-titleGradient.Color = ColorSequence.new(Color3.fromRGB(38, 38, 38), Color3.fromRGB(12, 12, 12))
-titleGradient.Rotation = 90
-titleGradient.Parent = titleBar
-
-local titleStroke = Instance.new("UIStroke")
-titleStroke.Color = Color3.fromRGB(95, 95, 95)
-titleStroke.Thickness = 1
-titleStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
-titleStroke.Parent = titleBar
+Instance.new("UICorner", titleBar).CornerRadius = UDim.new(0, 10)
 
 local titleLabel = Instance.new("TextLabel")
-titleLabel.Size = UDim2.new(1, -16, 1, 0)
-titleLabel.Position = UDim2.fromOffset(8, 0)
+titleLabel.Size = UDim2.new(1, -20, 1, 0)
+titleLabel.Position = UDim2.fromOffset(10, 0)
 titleLabel.BackgroundTransparency = 1
-titleLabel.Text = "BOT MASTER"
-titleLabel.TextColor3 = Color3.fromRGB(235, 235, 235)
-titleLabel.TextXAlignment = Enum.TextXAlignment.Left
-titleLabel.TextSize = 13
+titleLabel.Text = "BOT CONTROLLER"
+titleLabel.TextColor3 = Color3.fromRGB(200, 200, 255)
 titleLabel.Font = Enum.Font.GothamBold
+titleLabel.TextSize = 13
+titleLabel.TextXAlignment = Enum.TextXAlignment.Left
 titleLabel.Parent = titleBar
 
-local jumpBtn = Instance.new("TextButton")
-jumpBtn.Size = UDim2.new(1, -16, 0, 40)
-jumpBtn.Position = UDim2.fromOffset(8, 36)
-jumpBtn.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-jumpBtn.BorderSizePixel = 0
-jumpBtn.Text = "JUMP"
-jumpBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-jumpBtn.Font = Enum.Font.GothamBold
-jumpBtn.TextSize = 14
-jumpBtn.AutoButtonColor = false
-jumpBtn.Parent = mainFrame
+local function makeButton(text, y, color)
+    local btn = Instance.new("TextButton")
+    btn.Size = UDim2.new(1, -20, 0, 35)
+    btn.Position = UDim2.fromOffset(10, y)
+    btn.BackgroundColor3 = color
+    btn.BorderSizePixel = 0
+    btn.Text = text
+    btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    btn.Font = Enum.Font.GothamBold
+    btn.TextSize = 13
+    btn.Parent = mainFrame
+    Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 6)
+    return btn
+end
 
-local btnGradient = Instance.new("UIGradient")
-btnGradient.Color = ColorSequence.new(Color3.fromRGB(40, 200, 80), Color3.fromRGB(20, 120, 45))
-btnGradient.Rotation = 90
-btnGradient.Parent = jumpBtn
+local jumpBtn = makeButton("JUMP", 40, Color3.fromRGB(40, 180, 80))
+jumpBtn.MouseButton1Click:Connect(function() sendCommand("jump") end)
 
-local btnStroke = Instance.new("UIStroke")
-btnStroke.Color = Color3.fromRGB(70, 70, 70)
-btnStroke.Thickness = 1
-btnStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
-btnStroke.Parent = jumpBtn
+local fwdBtn = makeButton("MOVE FORWARD", 85, Color3.fromRGB(60, 120, 200))
+fwdBtn.MouseButton1Click:Connect(function() sendCommand("move_forward") end)
 
-jumpBtn.MouseButton1Click:Connect(function()
-    print("[MASTER] JUMP button clicked.")
-    sendCommand("jump")
-end)
+local backBtn = makeButton("MOVE BACK", 130, Color3.fromRGB(60, 120, 200))
+backBtn.MouseButton1Click:Connect(function() sendCommand("move_back") end)
 
-local dragging = false
-local dragStart
-local startPos
+local stopBtn = makeButton("STOP", 175, Color3.fromRGB(200, 150, 40))
+stopBtn.MouseButton1Click:Connect(function() sendCommand("stop") end)
 
-titleBar.InputBegan:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-        dragging = true
-        dragStart = input.Position
-        startPos = mainFrame.Position
-        input.Changed:Connect(function()
-            if input.UserInputState == Enum.UserInputState.End then
-                dragging = false
-            end
-        end)
-    end
-end)
-
-UserInputService.InputChanged:Connect(function(input)
-    if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
-        local delta = input.Position - dragStart
-        mainFrame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
-    end
-end)
-
-print("[MASTER] GUI loaded and ready.")
+local resetBtn = makeButton("RESET", 220, Color3.fromRGB(200, 60, 60))
+resetBtn.MouseButton1Click:Connect(function() sendCommand("reset") end)
